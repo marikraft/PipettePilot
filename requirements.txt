@@ -1,0 +1,2 @@
+pylabrobot==0.2.2
+python-dotenv

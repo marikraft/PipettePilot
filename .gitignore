@@ -1,0 +1,11 @@
+# Secrets: never upload your API key
+.env
+
+# Python virtual environment and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Editor settings (personal, not part of the project)
+*.code-workspace
+.vscode/
