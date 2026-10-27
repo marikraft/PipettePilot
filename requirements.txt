@@ -1,3 +1,4 @@
 pylabrobot==0.2.2
 anthropic
 python-dotenv
+pytest

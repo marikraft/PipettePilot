@@ -1,16 +1,17 @@
 """
-Runs a list of actions on the liquid handler.
+Runs a validated plan on the liquid handler.
 
-Uses a fresh tip for every transfer: slower and more tips, but no carry-over between
-wells, which matters more than speed in an assay plate.
+A fresh tip for every transfer: slower and uses more tips, but no carry-over between
+wells, which matters more than speed on an assay plate.
 """
 from .actions import Transfer
 from .deck import Lab, next_tip
+from .rules import select_tip
 
 
 async def execute(lab: Lab, plan: list[Transfer]) -> None:
     for step in plan:
-        tip = next_tip(lab)
+        tip = next_tip(lab, select_tip(step.volume_ul))
         source = lab.plates[step.source_plate].get_well(step.source_well)
         dest = lab.plates[step.dest_plate].get_well(step.dest_well)
 
