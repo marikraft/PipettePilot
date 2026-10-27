@@ -1,9 +1,14 @@
 """
-Day 0 sanity check: a simulated liquid handler doing one transfer, written by hand.
-No AI yet. If this runs, your environment is ready.
+Sanity check: a simulated liquid handler doing one hand-written transfer. No AI yet.
+
+What comes from PyLabRobot: the robot, the simulator, the deck, the labware
+catalogue, the commands and the volume tracker.
+What is ours: every choice marked "OUR CHOICE" below.
 """
 import asyncio
 
+# OUR CHOICE: PyLabRobot instead of a vendor API (e.g. Opentrons).
+# It is hardware-agnostic, so the same code could drive Hamilton, Tecan or Opentrons.
 from pylabrobot.liquid_handling import LiquidHandler
 from pylabrobot.liquid_handling.backends import LiquidHandlerChatterboxBackend
 from pylabrobot.resources import (
@@ -17,14 +22,17 @@ from pylabrobot.resources import (
 
 
 async def main():
-    # Tell the simulator to keep track of how much liquid is in each well.
+    # OUR CHOICE: turn on volume tracking. It is OFF by default in PyLabRobot,
+    # and without it the system cannot know what is in each well, so no validation is possible.
     set_volume_tracking(True)
 
-    # 1. A simulated robot: it prints every command instead of moving hardware.
+    # OUR CHOICE: a simulated backend (no hardware needed, runs on any computer)
+    # and a Hamilton STARlet deck (common in pharma labs).
     lh = LiquidHandler(backend=LiquidHandlerChatterboxBackend(), deck=STARLetDeck())
     await lh.setup()
 
-    # 2. Put labware on the deck: one tip rack and two 96-well plates.
+    # OUR CHOICE: standard labware with real physical limits
+    # (1000 uL tips, 96-well plates of 360 uL), so validation tests are meaningful.
     tip_carrier = TIP_CAR_480_A00(name="tip_carrier")
     tip_carrier[0] = tips = hamilton_96_tiprack_1000uL(name="tips")
     lh.deck.assign_child_resource(tip_carrier, rails=3)
@@ -34,10 +42,13 @@ async def main():
     plate_carrier[1] = target = cor_96_wellplate_360uL_Fb(name="target")
     lh.deck.assign_child_resource(plate_carrier, rails=9)
 
-    # 3. Fill the source well A1 with 200 uL of liquid (in the simulation's memory).
+    # OUR CHOICE: the starting state of the experiment (source A1 holds 200 uL).
     source.get_well("A1").tracker.set_volume(200)
 
-    # 4. One transfer: 50 uL from source A1 to target B1.
+    # OUR CHOICE: the protocol itself, written by hand: transfer 50 uL from source A1 to target B1.
+    # The commands are PyLabRobot's. Note: PyLabRobot only detects errors (e.g. too little
+    # liquid) DURING execution, with a tip already picked up. Our validation layer will check
+    # the whole plan BEFORE the first movement.
     await lh.pick_up_tips(tips["A1"])
     await lh.aspirate(source["A1"], vols=[50])
     await lh.dispense(target["B1"], vols=[50])
