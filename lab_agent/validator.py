@@ -76,18 +76,18 @@ def validate(plan: list[Transfer], deck_state: dict) -> ValidationReport:
         src = state["plates"][step.source_plate]
         dst = state["plates"][step.dest_plate]
         max_vol = dst["max_volume_ul"]
-        dead_vol = DEAD_VOLUME_FRACTION * src["max_volume_ul"]
 
         available = src["filled_wells"].get(step.source_well, 0)
         if step.volume_ul > available:
             report.errors.append(Issue(i, f"{step.source_plate} {step.source_well} holds {available:g} uL at this "
                                           f"point, not enough for {step.volume_ul:g} uL."))
             continue
+        recoverable = (1 - DEAD_VOLUME_FRACTION) * available
+        if step.volume_ul > recoverable:
+            report.warnings.append(Issue(i, f"{step.source_plate} {step.source_well} holds {available:g} uL, so only "
+                                            f"about {recoverable:g} uL can be reliably aspirated; "
+                                            f"{step.volume_ul:g} uL may come up short."))
         remaining = available - step.volume_ul
-        if remaining < dead_vol:
-            report.warnings.append(Issue(i, f"Leaves {remaining:g} uL in {step.source_plate} {step.source_well}, "
-                                            f"below the {dead_vol:g} uL dead volume; the robot may not aspirate "
-                                            f"the full amount."))
 
         new_dest = dst["filled_wells"].get(step.dest_well, 0) + step.volume_ul
         if new_dest > max_vol:

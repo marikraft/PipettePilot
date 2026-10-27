@@ -5,8 +5,8 @@ These are rules of thumb, not physical limits, and they vary between labs and pr
 so they live here as parameters rather than buried in the validation code.
 """
 
-# Leave at least this fraction of a well's capacity behind when aspirating.
-# Robots can't reliably aspirate the last few microlitres (10% is a common guideline).
+# Fraction of a well's current volume that can't be reliably aspirated
+# (10% is a common guideline: from 100 uL, expect to recover about 90 uL).
 DEAD_VOLUME_FRACTION = 0.10
 
 # Typical working range for a 360 uL well is roughly 100-300 uL.
