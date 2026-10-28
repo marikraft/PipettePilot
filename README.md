@@ -38,6 +38,8 @@ The robot side uses [PyLabRobot](https://github.com/PyLabRobot/pylabrobot), an o
 
 I wrote 34 test instructions in six groups and ran each one 5 times, comparing the LLM on its own with the LLM plus the validator. Full results are in [results/](results/).
 
+![Invalid plans reaching approval with no warning, LLM only vs LLM + validator](docs/images/results.png)
+
 | | Sonnet | Haiku | Sonnet, prompt v2 |
 |---|---|---|---|
 | Correct, LLM only | 74% | 69% | 79% |
@@ -56,16 +58,16 @@ I wrote 34 test instructions in six groups and ran each one 5 times, comparing t
 - **The LLM is not reliable at physical limits.** It sometimes did the maths right and refused an impossible request, and sometimes planned it anyway. The smaller model let more through.
 - **One correct answer means very little.** An instruction asking for 5 × 80 µL from a well holding 300 µL was refused when I first tried it by hand, then planned in all 5 evaluation runs.
 - **Small prompt changes move the results in unexpected ways.** Prompt v2 added one sentence about conflicts between the user and the deck. That fixed the conflict cases, and it also changed the 5 × 80 µL case from planned every time to refused every time, even though the new sentence has nothing to do with volumes.
+- **The prompt v2 fix held up on new cases.** Because v2 was written after seeing the first results, I tested it on 9 new instructions it hadn't seen: 6 new deck conflicts (*"Target C5 already has 100 µL of cells in it from yesterday…"*) and 3 clear instructions, one of which mentions bench work without any conflict. On the new conflicts, v1 let 17% through unflagged even with the validator, because the validator can't know about changes made by hand. v2 handled 100% correctly, and all clear instructions still ran as expected, so the new rule didn't make the model over-cautious.
 - **The LLM doesn't know the lab's own rules,** like dead volume or tip sizes. It can't, unless someone writes them down.
 
-So the validator isn't a backup for a weak model. It's what makes the system's safety independent of which model or prompt is used. With it, the cheaper model was just as safe as the bigger one.
+So the two layers do different jobs. The validator makes physical and lab-practice safety independent of which model or prompt is used: with it, the cheaper model was just as safe as the bigger one. The prompt handles what the validator can't see, like a user describing changes made by hand.
 
 ## Limitations
 
 - **Simulation only.** No real liquids, viscosity or timing. Real pipetting behaviour would need testing on a robot.
 - **The system trusts its record of the deck.** If someone adds liquid by hand, the record is wrong. Prompt v2 makes the LLM ask when the user mentions this, but that depends on the user mentioning it. A real setup should measure the deck before running, for example with the robot's liquid level detection.
 - **The test set is small and I wrote it myself.** 34 instructions can't cover how real scientists phrase things. The next step would be collecting instructions from lab users.
-- **Prompt v2 was written after seeing the first results and tested on the same cases,** so its improvement may not carry over to new instructions. A fair test would use cases it hasn't seen.
 - **Answers in plain text.** The model I used doesn't support forcing tool use, so the format is requested in the prompt and checked in code. Haiku answered in text instead of a tool call 2 times out of 170. Nothing ran in those cases, but the answer couldn't be processed automatically either.
 - **The audit trail can detect changes but can't prevent them,** and it is not a validated 21 CFR Part 11 system.
 - **Only two actions** (transfer and distribute) and one fixed deck layout.
