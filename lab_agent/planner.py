@@ -94,14 +94,20 @@ class PlannerResult:
     question: str | None = None
     refusal: str | None = None
     free_text: str | None = None  # the model answered in prose instead of calling a tool
+    raw_calls: list[dict] = field(default_factory=list)  # exactly what the model returned, for the audit trail
+    model: str | None = None
+    usage: dict | None = None  # input/output tokens, to track cost
 
 
 def parse_response(content) -> PlannerResult:
     """Turn the LLM's tool calls into a PlannerResult. Kept separate so it can be tested offline."""
     result = PlannerResult()
     for block in content:
+        if block.type == "text":
+            result.raw_calls.append({"text": block.text})
         if block.type != "tool_use":
             continue
+        result.raw_calls.append({"tool": block.name, "input": block.input})
         args = block.input
         if block.name == "transfer":
             result.plan += transfer(**args)
@@ -130,4 +136,7 @@ def plan_instruction(instruction: str, deck_state: dict, client=None) -> Planner
         tool_choice={"type": "auto"},
         messages=[{"role": "user", "content": instruction}],
     )
-    return parse_response(response.content)
+    result = parse_response(response.content)
+    result.model = response.model
+    result.usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    return result

@@ -5,7 +5,11 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Editor settings (personal, not part of the project)
 *.code-workspace
 .vscode/
+
+# Audit trails produced by local runs
+logs/
