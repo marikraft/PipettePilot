@@ -20,7 +20,7 @@ import anthropic
 
 from lab_agent.planner import MODEL, plan_instruction
 from lab_agent.validator import validate
-from evaluation.cases import CASES, DEFAULT_DECK
+from evaluation.cases import CASES, HELDOUT_CASES, DEFAULT_DECK
 
 RESULTS_DIR = Path("results")
 
@@ -129,10 +129,12 @@ def main():
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--prompt", default="v1", help="system prompt version (see planner.SYSTEM_PROMPTS)")
     parser.add_argument("--category", help="run only one category")
+    parser.add_argument("--heldout", action="store_true", help="run the held-out cases instead of the main set")
     parser.add_argument("--only", help="run a single case id, for debugging")
     args = parser.parse_args()
 
-    cases = [c for c in CASES
+    case_set = HELDOUT_CASES if args.heldout else CASES
+    cases = [c for c in case_set
              if (not args.only or c["id"] == args.only)
              and (not args.category or c["category"] == args.category)]
     client = anthropic.Anthropic(max_retries=5)
@@ -144,6 +146,8 @@ def main():
 
     RESULTS_DIR.mkdir(exist_ok=True)
     name = args.model if args.prompt == "v1" else f"{args.model}_prompt-{args.prompt}"
+    if args.heldout:
+        name += "_heldout"
     if args.category or args.only:
         name += "_" + (args.only or args.category.replace(" ", "-"))
     fields = ["id", "category", "repeat", "llm_only", "with_validator", "llm_only_correct",

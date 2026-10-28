@@ -65,13 +65,14 @@ So the validator isn't a backup for a weak model. It's what makes the system's s
 - **Simulation only.** No real liquids, viscosity or timing. Real pipetting behaviour would need testing on a robot.
 - **The system trusts its record of the deck.** If someone adds liquid by hand, the record is wrong. Prompt v2 makes the LLM ask when the user mentions this, but that depends on the user mentioning it. A real setup should measure the deck before running, for example with the robot's liquid level detection.
 - **The test set is small and I wrote it myself.** 34 instructions can't cover how real scientists phrase things. The next step would be collecting instructions from lab users.
+- **Prompt v2 was written after seeing the first results and tested on the same cases,** so its improvement may not carry over to new instructions. A fair test would use cases it hasn't seen.
 - **Answers in plain text.** The model I used doesn't support forcing tool use, so the format is requested in the prompt and checked in code. Haiku answered in text instead of a tool call 2 times out of 170. Nothing ran in those cases, but the answer couldn't be processed automatically either.
 - **The audit trail can detect changes but can't prevent them,** and it is not a validated 21 CFR Part 11 system.
 - **Only two actions** (transfer and distribute) and one fixed deck layout.
 
 ## Where this could go
 
-The value isn't in saving a few minutes at one bench. It's in lowering the barrier to automation across a whole organisation: today, every new robot task needs someone trained in the vendor's software, which is slow and doesn't scale. A natural-language layer with built-in checks could let many more scientists use automation directly, with every run checked and logged the same way.
+The bigger goal is to make automation easier to use across a whole organisation. Today, every new robot task needs someone trained in the vendor's software, which is slow and doesn't scale. A natural-language layer with built-in checks could let many more scientists use automation directly, with every run checked and logged the same way.
 
 From my time in the lab, I see three stages:
 
