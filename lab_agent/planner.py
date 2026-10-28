@@ -124,10 +124,10 @@ def parse_response(content) -> PlannerResult:
     return result
 
 
-def plan_instruction(instruction: str, deck_state: dict, client=None) -> PlannerResult:
+def plan_instruction(instruction: str, deck_state: dict, client=None, model: str | None = None) -> PlannerResult:
     client = client or anthropic.Anthropic()
     response = client.messages.create(
-        model=MODEL,
+        model=model or MODEL,
         max_tokens=2048,
         system=SYSTEM_PROMPT.format(deck=json.dumps(deck_state, indent=2)),
         tools=TOOLS,
