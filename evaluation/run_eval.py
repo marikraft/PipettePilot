@@ -6,7 +6,8 @@ Runs every test case several times against one model and scores two pipelines:
 
 Usage:
   python -m evaluation.run_eval --model claude-sonnet-5-5 --repeats 5
-Writes results/<model>_runs.csv (every run) and results/<model>_summary.md.
+  python -m evaluation.run_eval --prompt v2 --category "conflicts with deck"
+Writes results/<model>[_<prompt>]_runs.csv (every run) and ..._summary.md.
 """
 import argparse
 import csv
@@ -43,11 +44,11 @@ def plan_matches(plan, expected):
     return got == Counter(expected)
 
 
-def run_once(client, model, case, repeat):
+def run_once(client, model, prompt, case, repeat):
     deck = case.get("deck", DEFAULT_DECK)
     start = time.perf_counter()
     try:
-        result = plan_instruction(case["instruction"], deck, client=client, model=model)
+        result = plan_instruction(case["instruction"], deck, client=client, model=model, prompt_version=prompt)
     except anthropic.APIError as e:
         return {"id": case["id"], "category": case["category"], "repeat": repeat,
                 "llm_only": "api_error", "with_validator": "api_error", "error": str(e)[:200]}
@@ -72,14 +73,14 @@ def pct(n, d):
     return f"{100 * n / d:.0f}%" if d else "-"
 
 
-def summarise(rows, model, repeats):
+def summarise(rows, model, repeats, n_cases):
     ok = [r for r in rows if r["llm_only"] != "api_error"]
     by_cat = defaultdict(list)
     for r in ok:
         by_cat[r["category"]].append(r)
 
     lines = [f"# Evaluation: {model}", "",
-             f"{len(CASES)} cases x {repeats} repeats = {len(rows)} runs ({len(rows) - len(ok)} API errors).", "",
+             f"{n_cases} cases x {repeats} repeats = {len(rows)} runs ({len(rows) - len(ok)} API errors).", "",
              "| Category | Runs | Correct, LLM only | Correct, LLM + validator | Would run unflagged, LLM only "
              "| Would run unflagged, with validator |",
              "|---|---|---|---|---|---|"]
@@ -126,28 +127,35 @@ def main():
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--prompt", default="v1", help="system prompt version (see planner.SYSTEM_PROMPTS)")
+    parser.add_argument("--category", help="run only one category")
     parser.add_argument("--only", help="run a single case id, for debugging")
     args = parser.parse_args()
 
-    cases = [c for c in CASES if not args.only or c["id"] == args.only]
+    cases = [c for c in CASES
+             if (not args.only or c["id"] == args.only)
+             and (not args.category or c["category"] == args.category)]
     client = anthropic.Anthropic(max_retries=5)
     jobs = [(c, r) for c in cases for r in range(1, args.repeats + 1)]
-    print(f"Running {len(jobs)} calls against {args.model}...")
+    print(f"Running {len(jobs)} calls against {args.model}, prompt {args.prompt}...")
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        rows = list(pool.map(lambda job: run_once(client, args.model, *job), jobs))
+        rows = list(pool.map(lambda job: run_once(client, args.model, args.prompt, *job), jobs))
 
     RESULTS_DIR.mkdir(exist_ok=True)
+    name = args.model if args.prompt == "v1" else f"{args.model}_prompt-{args.prompt}"
+    if args.category or args.only:
+        name += "_" + (args.only or args.category.replace(" ", "-"))
     fields = ["id", "category", "repeat", "llm_only", "with_validator", "llm_only_correct",
               "with_validator_correct", "plan_steps", "plan_exact", "input_tokens", "output_tokens",
               "latency_s", "plan", "message", "error"]
-    with open(RESULTS_DIR / f"{args.model}_runs.csv", "w", newline="", encoding="utf-8") as f:
+    with open(RESULTS_DIR / f"{name}_runs.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
 
-    summary = summarise(rows, args.model, args.repeats)
-    (RESULTS_DIR / f"{args.model}_summary.md").write_text(summary, encoding="utf-8")
+    summary = summarise(rows, f"{args.model}, prompt {args.prompt}", args.repeats, len(cases))
+    (RESULTS_DIR / f"{name}_summary.md").write_text(summary, encoding="utf-8")
     print(summary)
 
 
